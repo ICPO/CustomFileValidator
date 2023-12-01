@@ -1,5 +1,5 @@
 # CustomFileValidator
-Решение для себя под kartik fileinput
+Также работает с виджетом kartik fileinput.
 
 1) В виджет картика в pluginOptions добавить следующее:
 ```
@@ -8,17 +8,29 @@
 ```
 
 2) В контроллере в нужном экшене перед $model->save() прописать CustomFileValidator::validate($model);
+   По желанию, можно указать options и "кастомизировать" валидацию
 
 Пример экшена
 
 ```
     public function actionCreate()
     {
-        $model = new Gallery();
+        $model = new MainSlider();
 
         if ($model->load(Yii::$app->request->post())) {
 
-            CustomFileValidator::validate($model); <---------------------------- прописали тут
+            $options = [                                    <---------------------------- прописали тут
+                'function' => function ($model) {
+                    if ($model->mode == 1) {
+                        return ['attributeToValidate' => ['image']];
+                    } else {
+                        return ['attributeToValidate' => ['video']];
+                    }
+
+                }
+            ];
+
+            CustomFileValidator::validate($model,$options); <---------------------------- прописали тут
 
             if ($model->save()) {
                 Yii::$app->session->setFlash('success', 'Запись успешно создана');
