@@ -30,12 +30,9 @@ class CustomFileValidator extends Component
                 $instance = UploadedFile::getInstances($model, $item);
 
                 if (count($instance) == 0) {
-                    # проверка на update
-
                     $vls = $model->validators;
                     $validator = Validator::createValidator('required', $model, [$item], ['enableClientValidation' => false]); // отключаем валидацию у клиента, чтобы невзирая на ошибки мог повторно нажать кнопки отправки формы. Валидацию берет на себя скрипт.
                     $vls->append($validator);
-
 
                 }
             }
