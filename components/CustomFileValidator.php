@@ -4,18 +4,23 @@ namespace app\components;
 
 use yii\base\Component;
 use yii\validators\Validator;
+use yii\web\ServerErrorHttpException;
 use yii\web\UploadedFile;
 
 
 class CustomFileValidator extends Component
 {
+    static $attributeToValidate = ['image'];
+    static $attributeToIgnore = [];// image_mobile, например. Исключает image_mobile из валидации
 
-    static $systemName = ['image'];
-    static $systemDelimiter = '_';
-    static $systemIgnore = [];// mobile, например. Исключает image_mobile из валидации
-
-    public static function validate(&$model): void
+    public static function validate(&$model, $options = []): void
     {
+
+        # validate options
+        if (count($options) > 0) {
+            self::validateOptions($model, $options);
+        }
+
         # получаем поля, которые должны быть валидированы
         $validateList = self::getAttributesWhichNeedValidate($model);
 
@@ -25,8 +30,10 @@ class CustomFileValidator extends Component
                 $instance = UploadedFile::getInstances($model, $item);
 
                 if (count($instance) == 0) {
+                    # проверка на update
+
                     $vls = $model->validators;
-                    $validator = Validator::createValidator('required', $model, [$item]);
+                    $validator = Validator::createValidator('required', $model, [$item], ['enableClientValidation' => false]); // отключаем валидацию у клиента, чтобы невзирая на ошибки мог повторно нажать кнопки отправки формы. Валидацию берет на себя скрипт.
                     $vls->append($validator);
 
 
@@ -45,7 +52,7 @@ class CustomFileValidator extends Component
         # формируем игнорируемые для валидациия поля
         $ignoreList = self::createIgnoreList();
 
-        foreach (self::$systemName as $name) {
+        foreach (self::$attributeToValidate as $name) {
             foreach ($allAttributes as $key => $attribute) {
                 if (strpos($attribute, $name) !== false) {
                     if (!in_array($attribute, $ignoreList)) {
@@ -59,14 +66,21 @@ class CustomFileValidator extends Component
 
     private static function createIgnoreList()
     {
-        $tmp = [];
-        foreach (self::$systemName as $name) {
-            foreach (self::$systemIgnore as $ignore) {
-                if (!in_array($name . self::$systemDelimiter . $ignore, $tmp)) {
-                    $tmp[] = $name . self::$systemDelimiter . $ignore;
-                }
-            }
+        return self::$attributeToIgnore;
+    }
+
+    private static function validateOptions($model, $options)
+    {
+        if (!isset($options['function'])) throw new ServerErrorHttpException('Не передан параметр function в опциях модели [' . $model::className() . ']');
+
+        $call = $options['function']($model);
+
+        if (!isset($call['attributeToValidate'])) throw new ServerErrorHttpException('Не передан результирующий параметр [attributeToValidate] внутри function в опциях модели [' . $model::className() . ']');
+        self::$attributeToValidate = $call['attributeToValidate'];
+
+        if (isset($call['attributeToIgnore'])) {
+            self::$attributeToIgnore = $call['attributeToIgnore'];
         }
-        return $tmp;
+
     }
 }
